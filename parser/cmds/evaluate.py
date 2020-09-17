@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
+
 from parser import Model
 from parser.cmds.cmd import CMD
 from parser.utils.corpus import Corpus
@@ -13,7 +14,7 @@ class Evaluate(CMD):
         subparser = parser.add_parser(
             name, help='Evaluate the specified model and dataset.'
         )
-        subparser.add_argument('--fdata', default='data/pos-data/ctb5/test.conll',
+        subparser.add_argument('--fdata', default='data/pos/ctb5/test.conll',
                                help='path to dataset')
 
         return subparser

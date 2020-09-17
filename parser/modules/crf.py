@@ -140,7 +140,7 @@ class CRF(nn.Module):
         # mask: [seq_len, batch_size]
         mask = mask.t()
 
-        # 用phi记录每一步的路径
+        # 用phi记录每一步的路径，初始化全部指向<pad>
         # phi: [seq_len + 1, batch_size, n_labels]，初始化全部指向<pad>
         phi = emits.new_full((seq_len + 1, batch_size, n_labels), self.pad_index, dtype=torch.long)
 
@@ -176,17 +176,63 @@ class CRF(nn.Module):
             pre_tags = torch.gather(phi[i], 1, pre_tags)
             tags[j] = pre_tags.squeeze()
         # tags: [batch_size, seq_len]
-        tags = tags.permute(1, 0).contiguous()
+        tags = tags.t()
         return tags
 
     def viterbi_2(self, emits, mask):
         """
 
         Args:
-            emits:
-            mask:
+            emits (torch.Tensor): [batch_size, seq_len, n_labels]
+            mask (torch.Tensor): [batch_size, seq_len]
 
         Returns:
 
         """
-        pass
+        # 和1阶解码几乎一样
+        batch_size, seq_len, n_labels = emits.shape
+        n_origin_labels = int(n_labels ** 0.5)
+        last_next_position = mask.sum(-1)
+
+        # emits: [seq_len, batch_size, n_origin_labels, n_origin_labels]
+        emits = emits.transpose(0, 1)
+        emits = emits.view(seq_len, batch_size, n_origin_labels, -1)
+        assert emits.size(2) == emits.sum(3)
+        # mask: [seq_len, batch_size]
+        mask = mask.t()
+
+        # phi记录路径
+        # phi: [seq_len + 1, batch_size, n_origin_labels]，初始化全部指向<pad>
+        phi = torch.full((seq_len + 1, batch_size, n_origin_labels), self.pad_index, dtype=torch.long).to(emits.device)
+        # delta记录分值，初始为<bos>到其他tag
+        # delta: [batch_size, n_origin_labels]
+        delta = emits[0, :, self.bos_index, :].clone()
+
+        # 计算后续状态
+        for i in range(1, seq_len):
+            # score: [batch_size, n_origin_labels, 1] + [batch_size, n_origin_labels, n_origin_labels]
+            #       => [batch_size, n_origin_labels, n_origin_labels]
+            score = delta.unsqueeze(-1) + emits[i]
+            # temp_delta, phi[i]: [batch_size, n_origin_labels]
+            temp_delta, phi[i] = torch.max(score, dim=1)
+
+            # 根据mask决定是否调整phi和delta
+            delta[mask[i]] = temp_delta[mask[i]]
+            phi[i][~mask[i]] = self.pad_index
+
+        # 将每一个句子有效末尾后面一个位置的<pad>位指向的tag改为delta中记录的最大tag
+        batch = torch.arange(batch_size, dtype=torch.long).to(self.device)
+        phi[last_next_position, batch, self.pad_index] = torch.argmax(delta, dim=-1)
+
+        # tags: [seq_len, batch_size]
+        tags = torch.zeros((seq_len, batch_size), dtype=torch.long).to(self.device)
+        # pre_tags: [batch_size, 1]
+        pre_tags = torch.full((batch_size, 1), self.pad_index, dtype=torch.long).to(self.device)
+        for i in range(seq_len, 0, -1):
+            j = i - seq_len - 1
+            # pre_tags: [batch_size, 1]
+            pre_tags = torch.gather(phi[i], 1, pre_tags)
+            tags[j] = pre_tags.squeeze()
+        # tags: [batch_size, seq_len]
+        tags = tags.t()
+        return tags
