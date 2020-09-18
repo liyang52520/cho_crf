@@ -37,7 +37,7 @@ class CMD(object):
                 self.CHAR = SubwordField("chars", fix_len=args.fix_len,
                                          bos=bos if args.label_ngram > 1 else None,
                                          eos=eos if args.label_ngram > 2 else None,
-                                         pad=pad, unk=unk, lower=True, tohalfwidth=True)
+                                         pad=pad, unk=unk, lower=True, to_half_width=True)
                 self.fields = CoNLL(WORD=(self.WORD, self.CHAR), LABEL=self.LABEL)
             else:
                 self.fields = CoNLL(WORD=self.WORD, LABEL=self.LABEL)
@@ -110,6 +110,12 @@ class CMD(object):
 
             # predict
             predicts = model.predict(emits, mask)
+            if self.args.label_ngram > 1:
+                # 去掉<bos>
+                labels = labels[:, 1:]
+            if self.args.label_ngram > 2:
+                # 如果大于2，要去掉<bos>和<eos>，但是目前不会遇到
+                pass
             metric(predicts, labels, mask)
         total_loss /= len(loader)
 

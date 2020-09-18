@@ -39,6 +39,7 @@ class CRF(nn.Module):
 
         """
         total_token = mask.sum().float()
+
         # 改变emits，target和mask的维度
         # emits: [seq_len, batch_size, n_labels ** order]
         emits = emits.transpose(0, 1)
@@ -52,10 +53,10 @@ class CRF(nn.Module):
 
         if self.order == 2:
             # targets: [seq_len, batch_size]
-            targets = targets[:, :-1] * self.n_labels + targets[:, 1:]
-        # scores
-        # torch.gather([seq_len, batch_size, n_labels ** order], -1, [seq_len, batch_size, 1]).squeeze(-1)
-        # => [seq_len, batch_size] => [n]
+            targets = targets[:-1] * self.n_labels + targets[1:]
+
+        # scores: gather([seq_len, batch_size, n_labels ** order], -1, [seq_len, batch_size, 1]).squeeze(-1)
+        #         => [seq_len, batch_size] => [n]
         scores = emits.gather(dim=-1, index=targets.unsqueeze(-1)).squeeze(-1).masked_select(mask).sum()
 
         # loss
@@ -64,7 +65,7 @@ class CRF(nn.Module):
         return loss
 
     def compute_log_z(self, emits, mask):
-        seq_len, batch_size, *_ = emits.shape
+        seq_len, batch_size = mask.shape
         n_labels = self.n_labels
 
         # 因为double精度更高吗?
@@ -135,10 +136,9 @@ class CRF(nn.Module):
         Returns:
 
         """
-        # 和1阶解码几乎一样
-        batch_size, seq_len = mask.shape
+        seq_len, batch_size = mask.shape
         n_labels = self.n_labels
-        last_next_position = mask.sum(-1)
+        last_next_position = mask.sum(0)
 
         # phi记录路径
         # phi: [seq_len + 1, batch_size, n_labels]，初始化全部指向<pad>
