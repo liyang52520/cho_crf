@@ -129,10 +129,9 @@ class CMD(object):
 
             # predict
             predicts = model.predict(emits, mask)
-
-            # 如果是二阶的label，还需要转换一下
+            # 如果是2阶，将labels，改为原来的
             if self.args.label_ngram == 2:
-                pass
+                labels = self.LABEL.revert(labels)
             metric(predicts, labels, mask)
         total_loss /= len(loader)
 

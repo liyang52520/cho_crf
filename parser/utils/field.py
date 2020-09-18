@@ -145,7 +145,7 @@ class Field(RawField):
 
 class NGramLabelField(Field):
     def __init__(self, *args, **kwargs):
-        self.n = kwargs.pop('n') if 'n' in kwargs else 1
+        self.n = kwargs.pop('n', 1)
         if 'bos' not in kwargs:
             kwargs['bos'] = bos
         if 'eos' not in kwargs and self.n > 2:
@@ -159,6 +159,20 @@ class NGramLabelField(Field):
         vocab_size = self.vocab.n_init
         return self.vocab.id2token(
             map(lambda x: (x % vocab_size ** (center_idx + 1)) // vocab_size ** center_idx, sequence))
+
+    def revert(self, sequence):
+        """
+        将转还后的数据转换回原数据
+        Args:
+            sequence:
+
+        Returns:
+
+        """
+        # 代码只会涉及到2阶，因此，我只需要每次把后一位数据取出即可，其他情况暂时不考虑
+        vocab_size = self.vocab.n_init
+        sequence = sequence % vocab_size
+        return sequence
 
     def build(self, corpus, min_freq=1, embed=None):
         super(NGramLabelField, self).build(corpus, min_freq, embed)
@@ -184,7 +198,7 @@ class NGramLabelField(Field):
 
 class NGramField(Field):
     def __init__(self, *args, **kwargs):
-        self.n = kwargs.pop('n') if 'n' in kwargs else 1
+        self.n = kwargs.pop('n', 1)
         super(NGramField, self).__init__(*args, **kwargs)
 
     def build(self, corpus, min_freq=1, dict_file=None, embed=None):

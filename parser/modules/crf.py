@@ -197,7 +197,7 @@ class CRF(nn.Module):
         # emits: [seq_len, batch_size, n_origin_labels, n_origin_labels]
         emits = emits.transpose(0, 1)
         emits = emits.view(seq_len, batch_size, n_origin_labels, -1)
-        assert emits.size(2) == emits.sum(3)
+        assert emits.size(2) == emits.size(3)
         # mask: [seq_len, batch_size]
         mask = mask.t()
 
@@ -221,13 +221,13 @@ class CRF(nn.Module):
             phi[i][~mask[i]] = self.pad_index
 
         # 将每一个句子有效末尾后面一个位置的<pad>位指向的tag改为delta中记录的最大tag
-        batch = torch.arange(batch_size, dtype=torch.long).to(self.device)
+        batch = torch.arange(batch_size, dtype=torch.long).to(emits.device)
         phi[last_next_position, batch, self.pad_index] = torch.argmax(delta, dim=-1)
 
         # tags: [seq_len, batch_size]
-        tags = torch.zeros((seq_len, batch_size), dtype=torch.long).to(self.device)
+        tags = torch.zeros((seq_len, batch_size), dtype=torch.long).to(emits.device)
         # pre_tags: [batch_size, 1]
-        pre_tags = torch.full((batch_size, 1), self.pad_index, dtype=torch.long).to(self.device)
+        pre_tags = torch.full((batch_size, 1), self.pad_index, dtype=torch.long).to(emits.device)
         for i in range(seq_len, 0, -1):
             j = i - seq_len - 1
             # pre_tags: [batch_size, 1]
