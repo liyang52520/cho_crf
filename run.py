@@ -35,8 +35,8 @@ if __name__ == '__main__':
                                help='seed for generating random numbers')
         subparser.add_argument('--threads', '-t', default=8, type=int,
                                help='max num of threads')
-        subparser.add_argument('--feat', default=None,
-                               choices=[None, 'bigram', 'char'],
+        subparser.add_argument('--feat', default='char',
+                               choices=[None, 'char'],
                                help='choices of additional features')
         subparser.add_argument('--batch-size', default=5000, type=int,
                                help='batch size')

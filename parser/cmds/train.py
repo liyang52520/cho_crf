@@ -57,14 +57,11 @@ class Train(CMD):
         print("Create the model")
 
         embed = {'word_embed': self.WORD.embed}
-        if hasattr(self, 'BIGRAM'):
-            embed.update({
-                'bi_embed': self.BIGRAM.embed,
-            })
 
         # load pretrained
         self.model = Model(args).load_pretrained(embed)
         print(f"{self.model}\n")
+
         # to device
         self.model = self.model.to(args.device)
         # ?
@@ -128,10 +125,7 @@ class Train(CMD):
         model.train()
 
         for data in loader:
-            if self.args.feat == 'bigram':
-                words, bigram, labels = data
-                feed_dict = {"words": words, "bigram": bigram}
-            elif self.args.feat == 'char':
+            if self.args.feat == 'char':
                 words, chars, labels = data
                 feed_dict = {"words": words, "chars": chars}
             else:
@@ -140,13 +134,14 @@ class Train(CMD):
 
             optimizer.zero_grad()
 
-            # cut mask
+            # todo cut mask
             mask = words.ne(self.args.pad_index)
             if self.args.label_ngram > 1:
-                # mask: [batch_size, seq_len - self.args.label_ngram + 1]
+                # mask: [batch_size, seq_len - label_ngram + 1]
                 mask = mask[:, (self.args.label_ngram - 1):]
 
-            # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels]
+            # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels ** label_ngram]
+            # seq_len - self.args.label_ngram + 1就是原句子未添加<bos>或者<eos>的长度
             emits = model(feed_dict)
 
             # compute crf loss

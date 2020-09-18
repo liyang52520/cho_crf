@@ -3,9 +3,9 @@ import os
 import torch
 
 from parser.utils import Embedding
-from parser.utils.common import bos, eos, pad, unk
+from parser.utils.common import bos, eos, unk, pad
 from parser.utils.corpus import CoNLL, Corpus
-from parser.utils.field import Field, NGramField, NGramLabelField, SubwordField
+from parser.utils.field import SubwordField, Field
 from parser.utils.metric import LabelMetric
 
 
@@ -24,24 +24,16 @@ class CMD(object):
             self.WORD = Field('words',
                               bos=bos if args.label_ngram > 1 else None,
                               eos=eos if args.label_ngram > 2 else None,
-                              pad=pad, unk=unk,
-                              lower=True, tohalfwidth=True)
+                              pad=pad, unk=unk, lower=True, to_half_width=True)
 
             # label field
-            if args.label_ngram > 1:
-                self.LABEL = NGramLabelField('labels', n=args.label_ngram, pad=pad)
-            else:
-                self.LABEL = Field('labels', pad=pad)
+            self.LABEL = Field('labels',
+                               bos=bos if args.label_ngram > 1 else None,
+                               eos=eos if args.label_ngram > 2 else None,
+                               pad=pad)
 
-            # feat field
-            if args.feat == 'bigram':
-                self.BIGRAM = NGramField(
-                    'bigram', n=2,
-                    bos=bos if args.label_ngram > 1 else None,
-                    eos=eos if args.label_ngram > 2 else None,
-                    pad=pad, unk=unk, lower=True, tohalfwidth=True)
-                self.fields = CoNLL(WORD=(self.WORD, self.BIGRAM), LABEL=self.LABEL)
-            elif args.feat == 'char':
+            # feat field（代码中只有char，也不用别的了，删掉了其余特征）
+            if args.feat == "char":
                 self.CHAR = SubwordField("chars", fix_len=args.fix_len,
                                          bos=bos if args.label_ngram > 1 else None,
                                          eos=eos if args.label_ngram > 2 else None,
@@ -57,18 +49,14 @@ class CMD(object):
             embed = Embedding.load('data/embedding/giga.100.txt', )
             self.WORD.build(train, args.min_freq, embed)
             self.LABEL.build(train)
-            if hasattr(self, 'BIGRAM'):
-                embed = Embedding.load('data/embedding/tencent.bi.200.txt')
-                self.BIGRAM.build(train, args.min_freq, embed=embed, dict_file="data/dict/dict_bigram.txt")
-            elif hasattr(self, "CHAR"):
+            if args.feat == "char":
                 self.CHAR.build(train)
             # save fields
             torch.save(self.fields, args.fields)
         else:
+            # load fields
             self.fields = torch.load(args.fields)
-            if args.feat == 'bigram':
-                self.WORD, self.BIGRAM = self.fields.WORD
-            elif args.feat == 'char':
+            if args.feat == 'char':
                 self.WORD, self.CHAR = self.fields.WORD
             else:
                 self.WORD = self.fields.WORD
@@ -84,11 +72,6 @@ class CMD(object):
         })
 
         vocab = f"{self.WORD}\n{self.LABEL}\n"
-        if hasattr(self, 'BIGRAM'):
-            args.update({
-                'n_bigrams': self.BIGRAM.vocab_size,
-            })
-            vocab += f"{self.BIGRAM}\n"
         if hasattr(self, 'CHAR'):
             args.update({
                 'n_chars': self.CHAR.vocab_size,
@@ -102,13 +85,11 @@ class CMD(object):
     def evaluate(self, model, loader):
         model.eval()
 
-        total_loss, metric = 0, LabelMetric()
+        total_loss = 0
+        metric = LabelMetric()
 
         for data in loader:
-            if self.args.feat == 'bigram':
-                words, bigram, labels = data
-                feed_dict = {"words": words, "bigram": bigram}
-            elif self.args.feat == 'char':
+            if self.args.feat == 'char':
                 words, chars, labels = data
                 feed_dict = {"words": words, "chars": chars}
             else:
@@ -129,9 +110,6 @@ class CMD(object):
 
             # predict
             predicts = model.predict(emits, mask)
-            # 如果是2阶，将labels，改为原来的
-            if self.args.label_ngram == 2:
-                labels = self.LABEL.revert(labels)
             metric(predicts, labels, mask)
         total_loss /= len(loader)
 

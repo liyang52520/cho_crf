@@ -17,15 +17,11 @@ class Model(nn.Module):
         self.word_embed = nn.Embedding(num_embeddings=args.n_words,
                                        embedding_dim=args.n_embed)
         n_lstm_input = args.n_embed
+
         # feat_embed
-        if self.args.feat == 'bigram':
-            self.bigram_embed = nn.Embedding(num_embeddings=args.n_bigrams,
-                                             embedding_dim=args.n_bigram_embed)
-            n_lstm_input += args.n_bigram_embed
-        elif self.args.feat == 'char':
+        if self.args.feat == 'char':
             self.char_embed = CharLSTM(n_chars=args.n_chars, n_embed=args.n_char_embed, n_out=args.n_embed)
             n_lstm_input += args.n_embed
-
         self.embed_dropout = IndependentDropout(p=args.embed_dropout)
 
         # the lstm layer
@@ -37,11 +33,11 @@ class Model(nn.Module):
 
         # the MLP layers
         self.mlp = MLP(n_in=args.n_lstm_hidden * 2 * args.label_ngram,
-                       n_out=args.n_labels,
+                       n_out=args.n_labels ** args.label_ngram,
                        activation=nn.Identity())
 
         # crf
-        self.crf = CRF(self.args.label_ngram, self.args.label_bos_index, self.args.label_pad_index)
+        self.crf = CRF(self.args.label_ngram, args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
 
         self.pad_index = args.pad_index
         self.unk_index = args.unk_index
@@ -57,22 +53,11 @@ class Model(nn.Module):
 
         """
         # word embed
-        word_embed = embed_dict['word_embed'] if isinstance(
-            embed_dict, dict) and 'word_embed' in embed_dict else None
-        # feat embed
-        if word_embed is not None:
-            self.pretrained = True
-
-            # word pretrained
+        if isinstance(embed_dict, dict) and 'word_embed' in embed_dict:
+            word_embed = embed_dict['word_embed']
             self.word_pretrained = nn.Embedding.from_pretrained(word_embed)
             nn.init.zeros_(self.word_embed.weight)
-
-            # bigram pretrained
-            if self.args.feat == 'bigram':
-                embed = embed_dict['bi_embed']
-                self.bi_pretrained = nn.Embedding.from_pretrained(embed)
-                nn.init.zeros_(self.bigram_embed.weight)
-
+            self.pretrained = True
         return self
 
     def forward(self, feed_dict):
@@ -84,6 +69,10 @@ class Model(nn.Module):
         Returns:
 
         """
+        # 1阶时，seq中不包含<bos>和<eos>
+        # 2阶时，seq中包含了<bos>
+        # 3阶时，seq中又包含了<eos>
+
         # words: [batch_size, seq_len]
         words = feed_dict["words"]
         batch_size, seq_len = words.shape
@@ -105,39 +94,26 @@ class Model(nn.Module):
             word_embed += self.word_pretrained(words)
 
         # feat embed
-        if self.args.feat == 'bigram':
-            bigram = feed_dict["bigram"]
-            ext_bigram = bigram
-            if self.pretrained:
-                ext_mask = bigram.ge(self.bigram_embed.num_embeddings)
-                ext_bigram = bigram.masked_fill(ext_mask, self.unk_index)
-            bigram_embed = self.bigram_embed(ext_bigram)
-            if self.pretrained:
-                bigram_embed += self.bi_pretrained(bigram)
-            word_embed, bigram_embed = self.embed_dropout(
-                word_embed, bigram_embed)
-            embed = torch.cat((word_embed, bigram_embed), dim=-1)
-        elif self.args.feat == 'char':
+        if self.args.feat == 'char':
             chars = feed_dict["chars"]
             char_embed = self.char_embed(chars)
-            word_embed, char_embed = self.embed_dropout(
-                word_embed, char_embed)
+            word_embed, char_embed = self.embed_dropout(word_embed, char_embed)
             embed = torch.cat((word_embed, char_embed), dim=-1)
         else:
             embed = self.embed_dropout(word_embed)[0]
 
+        # lstm
         x = pack_padded_sequence(embed, lens, True, False)
         x, _ = self.lstm(x)
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         x = self.lstm_dropout(x)
 
-        # concat
+        # todo: change input for mlp, now is concat
         if self.args.label_ngram == 2:
             # h_{i-1} \concat h_i
             x = torch.cat((x[:, :-1], x[:, 1:]), -1)
 
-        # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels]
-        # 此时才和target的大小相对应
+        # emits: [batch_size, seq_len - label_ngram + 1, n_labels ** label_ngram]
         emits = self.mlp(x)
 
         return emits
