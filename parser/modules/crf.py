@@ -6,8 +6,6 @@ class CRF(nn.Module):
     """
 
     Args:
-        order (int):
-            CRF阶数，1 or 2
         bos_index (int):
             当阶数为2时，是需要<bos>标签为起始计算标签的
         pad_index:
@@ -21,7 +19,7 @@ class CRF(nn.Module):
         self.pad_index = pad_index
 
     def extra_repr(self):
-        s = f"order={self.order}"
+        s = f"n_labels={self.n_labels}"
         return s
 
     def forward(self, emits, targets, mask):

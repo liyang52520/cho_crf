@@ -89,7 +89,7 @@ class Train(CMD):
             # dev
             loss, dev_metric = self.evaluate(self.model, dev.loader)
             print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric}")
-            exit()
+
             t = datetime.now() - start
             # save the model if it is the best so far
             if dev_metric > best_metric and epoch > args.patience // 10:
@@ -150,4 +150,3 @@ class Train(CMD):
                                      self.args.clip)
             optimizer.step()
             scheduler.step()
-            return

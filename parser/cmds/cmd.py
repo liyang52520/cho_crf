@@ -92,9 +92,7 @@ class CMD(object):
                 feed_dict = {"words": words}
 
             # mask
-            mask = words.ne(self.args.pad_index)
-            if self.args.label_ngram > 1:
-                mask = mask[:, (self.args.label_ngram - 1):]
+            mask = words.ne(self.args.pad_index)[:, 1:]
 
             # 计算分值
             emits = model(feed_dict)
@@ -105,12 +103,7 @@ class CMD(object):
 
             # predict
             predicts = model.predict(emits, mask)
-            if self.args.label_ngram > 1:
-                # 去掉<bos>
-                labels = labels[:, 1:]
-            if self.args.label_ngram > 2:
-                # 如果大于2，要去掉<bos>和<eos>，但是目前不会遇到
-                pass
+            labels = labels[:, 1:]
             metric(predicts, labels, mask)
         total_loss /= len(loader)
 
