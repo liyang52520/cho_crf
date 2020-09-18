@@ -32,12 +32,16 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp = MLP(n_in=args.n_lstm_hidden * 2 * args.label_ngram,
-                       n_out=args.n_labels ** args.label_ngram,
-                       activation=nn.Identity())
+        # 要用两个mlp层，一个计算unigram，一个计算bigram
+        self.mlp_unigram = MLP(n_in=args.n_lstm_hidden * 2,
+                               n_out=args.n_labels,
+                               activation=nn.Identity())
+        self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 4,
+                              n_out=args.n_labels ** 2,
+                              activation=nn.Identity())
 
         # crf
-        self.crf = CRF(self.args.label_ngram, args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
+        self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
 
         self.pad_index = args.pad_index
         self.unk_index = args.unk_index
@@ -69,10 +73,6 @@ class Model(nn.Module):
         Returns:
 
         """
-        # 1阶时，seq中不包含<bos>和<eos>
-        # 2阶时，seq中包含了<bos>
-        # 3阶时，seq中又包含了<eos>
-
         # words: [batch_size, seq_len]
         words = feed_dict["words"]
         batch_size, seq_len = words.shape
@@ -108,13 +108,21 @@ class Model(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         x = self.lstm_dropout(x)
 
-        # todo: change input for mlp, now is concat
-        if self.args.label_ngram == 2:
-            # h_{i-1} \concat h_i
-            x = torch.cat((x[:, :-1], x[:, 1:]), -1)
+        # x_1: [batch_size, seq_len, n_lstm_out * 2]
+        x_1 = x[:, 1:]
+        # x_2: [batch_size, seq_len, n_lstm_out * 4]
+        x_2 = torch.cat((x[:, :-1], x_1), -1)
 
-        # emits: [batch_size, seq_len - label_ngram + 1, n_labels ** label_ngram]
-        emits = self.mlp(x)
+        # emits_1: [batch_size, seq_len, n_labels]
+        emits_1: torch.Tensor = self.mlp_unigram(x_1)
+        # emits_2: [batch_size, seq_len, n_labels ** 2]
+        emits_2 = self.mlp_bigram(x_2)
+        # emits_2: [batch_size, seq_len, n_labels, n_labels]
+        emits_2 = emits_2.view(*emits_1.shape, -1)
+
+        # emits: [batch_size, seq_len, 1, n_labels] + [batch_size, seq_len, n_labels, n_labels]
+        #       => [batch_size, seq_len, n_labels, n_labels]
+        emits = emits_1.unsqueeze(2) + emits_2
 
         return emits
 

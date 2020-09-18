@@ -3,7 +3,7 @@ import os
 import torch
 
 from parser.utils import Embedding
-from parser.utils.common import bos, eos, unk, pad
+from parser.utils.common import bos, unk, pad
 from parser.utils.corpus import CoNLL, Corpus
 from parser.utils.field import SubwordField, Field
 from parser.utils.metric import LabelMetric
@@ -22,22 +22,17 @@ class CMD(object):
 
             # word field
             self.WORD = Field('words',
-                              bos=bos if args.label_ngram > 1 else None,
-                              eos=eos if args.label_ngram > 2 else None,
-                              pad=pad, unk=unk, lower=True, to_half_width=True)
+                              bos=bos, eos=None, pad=pad, unk=unk,
+                              lower=True, to_half_width=True)
 
             # label field
-            self.LABEL = Field('labels',
-                               bos=bos if args.label_ngram > 1 else None,
-                               eos=eos if args.label_ngram > 2 else None,
-                               pad=pad)
+            self.LABEL = Field('labels', bos=bos, eos=None, pad=pad)
 
             # feat field（代码中只有char，也不用别的了，删掉了其余特征）
             if args.feat == "char":
                 self.CHAR = SubwordField("chars", fix_len=args.fix_len,
-                                         bos=bos if args.label_ngram > 1 else None,
-                                         eos=eos if args.label_ngram > 2 else None,
-                                         pad=pad, unk=unk, lower=True, to_half_width=True)
+                                         bos=bos, eos=None, pad=pad, unk=unk, lower=True,
+                                         to_half_width=True)
                 self.fields = CoNLL(WORD=(self.WORD, self.CHAR), LABEL=self.LABEL)
             else:
                 self.fields = CoNLL(WORD=self.WORD, LABEL=self.LABEL)

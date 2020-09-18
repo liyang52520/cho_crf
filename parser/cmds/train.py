@@ -89,7 +89,7 @@ class Train(CMD):
             # dev
             loss, dev_metric = self.evaluate(self.model, dev.loader)
             print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric}")
-
+            exit()
             t = datetime.now() - start
             # save the model if it is the best so far
             if dev_metric > best_metric and epoch > args.patience // 10:
@@ -134,14 +134,11 @@ class Train(CMD):
 
             optimizer.zero_grad()
 
-            # todo cut mask
-            mask = words.ne(self.args.pad_index)
-            if self.args.label_ngram > 1:
-                # mask: [batch_size, seq_len - label_ngram + 1]
-                mask = mask[:, (self.args.label_ngram - 1):]
+            # words: [batch_size, seq_len + 1] (因为加了<bos>)
+            # mask: [batch_size, seq_len]
+            mask = words.ne(self.args.pad_index)[:, 1:]
 
-            # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels ** label_ngram]
-            # seq_len - self.args.label_ngram + 1就是原句子未添加<bos>或者<eos>的长度
+            # emits: [batch_size, seq_len, n_labels, n_labels]
             emits = model(feed_dict)
 
             # compute crf loss
@@ -153,3 +150,4 @@ class Train(CMD):
                                      self.args.clip)
             optimizer.step()
             scheduler.step()
+            return
