@@ -4,7 +4,7 @@ from collections import Counter
 
 import torch
 
-from parser.utils.fn import tohalfwidth, pad
+from parser.utils.fn import half_width, pad
 from parser.utils.vocab import Vocab
 
 
@@ -99,7 +99,7 @@ class Field(RawField):
         if self.lower:
             sequence = [str.lower(token) for token in sequence]
         if self.to_half_width:
-            sequence = [tohalfwidth(token) for token in sequence]
+            sequence = [half_width(token) for token in sequence]
 
         return sequence
 
