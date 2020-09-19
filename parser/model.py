@@ -109,7 +109,7 @@ class Model(nn.Module):
 
         # lstm
         # unigram去掉<bos>再输入到lstm中
-        x_1 = pack_padded_sequence(embed[1:], lens - 1, True, False)
+        x_1 = pack_padded_sequence(embed[:, 1:], lens - 1, True, False)
         x_1, _ = self.lstm_unigram(x_1)
         x_1, _ = pad_packed_sequence(x_1, True, total_length=seq_len - 1)
         # x_1: [batch_size, seq_len - 1, n_lstm_hidden * 2]
@@ -124,7 +124,7 @@ class Model(nn.Module):
 
         # mlp
         # emits_1: [batch_size, seq_len - 1, n_labels]
-        emits_1: torch.Tensor = self.mlp_unigram(x_1)
+        emits_1 = self.mlp_unigram(x_1)
         # emits_2: [batch_size, seq_len - 1, n_labels ** 2]
         emits_2 = self.mlp_bigram(x_2)
         # emits_2: [batch_size, seq_len - 1, n_labels, n_labels]
