@@ -74,6 +74,7 @@ class Model(nn.Module):
         # words: [batch_size, seq_len]
         words = feed_dict["words"]
         batch_size, seq_len = words.shape
+        n_labels = self.args.n_labels
 
         # mask: [batch_size, seq_len]
         mask = words.ne(self.pad_index)
@@ -116,7 +117,7 @@ class Model(nn.Module):
 
         # mlp
         # emits: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits = self.mlp(x)
+        emits = self.mlp(x).view(batch_size, seq_len - 1, n_labels, -1)
 
         return emits
 
