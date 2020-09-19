@@ -143,10 +143,8 @@ class Train(CMD):
 
             # compute crf loss
             loss = model.loss(emits, labels, mask)
-
             loss.backward()
             #
-            nn.utils.clip_grad_norm_(model.parameters(),
-                                     self.args.clip)
+            nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
             optimizer.step()
             scheduler.step()
