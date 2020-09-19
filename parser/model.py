@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import MLP, BiLSTM, CharLSTM, CRF
+from parser.modules import MLP, CharLSTM, CRF
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
@@ -25,25 +25,18 @@ class Model(nn.Module):
         self.embed_dropout = IndependentDropout(p=args.embed_dropout)
 
         # the lstm layer
-        self.lstm_unigram = BiLSTM(input_size=n_lstm_input,
-                                   hidden_size=args.n_lstm_hidden,
-                                   num_layers=args.n_lstm_layers,
-                                   dropout=args.lstm_dropout)
-
-        self.lstm_bigram = BiLSTM(input_size=n_lstm_input,
-                                  hidden_size=args.n_lstm_hidden,
-                                  num_layers=args.n_lstm_layers,
-                                  dropout=args.lstm_dropout)
+        self.lstm = nn.LSTM(input_size=n_lstm_input,
+                            hidden_size=args.n_lstm_hidden,
+                            num_layers=args.n_lstm_layers,
+                            dropout=args.lstm_dropout,
+                            bidirectional=True,
+                            batch_first=True)
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        # 要用两个mlp层，一个计算unigram，一个计算bigram
-        self.mlp_unigram = MLP(n_in=args.n_lstm_hidden * 2,
-                               n_out=args.n_labels,
-                               activation=nn.Identity())
-        self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 4,
-                              n_out=args.n_labels ** 2,
-                              activation=nn.Identity())
+        self.mlp = MLP(n_in=args.n_lstm_hidden * 2,
+                       n_out=args.n_labels ** 2,
+                       activation=nn.Identity())
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
@@ -108,32 +101,22 @@ class Model(nn.Module):
             embed = self.embed_dropout(word_embed)[0]
 
         # lstm
-        # unigram去掉<bos>再输入到lstm中
-        x_1 = pack_padded_sequence(embed[:, 1:], lens - 1, True, False)
-        x_1, _ = self.lstm_unigram(x_1)
-        x_1, _ = pad_packed_sequence(x_1, True, total_length=seq_len - 1)
-        # x_1: [batch_size, seq_len - 1, n_lstm_hidden * 2]
-        x_1 = self.lstm_dropout(x_1)
-        # bigram
-        x_2 = pack_padded_sequence(embed, lens, True, False)
-        x_2, _ = self.lstm_bigram(x_2)
-        x_2, _ = pad_packed_sequence(x_2, True, total_length=seq_len)
-        x_2 = self.lstm_dropout(x_2)
-        # x_2: [batch_size, seq_len - 1, n_lstm_hidden * 4]
-        x_2 = torch.cat((x_2[:, :-1], x_2[:, 1:]), -1)
+        x = pack_padded_sequence(embed, lens, True, False)
+        x, _ = self.lstm(x)
+        x, _ = pad_packed_sequence(x, True, total_length=seq_len)
+        # x: [batch_size, seq_len, 2, n_lstm_hidden]
+        x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
+        x_f, x_b = torch.unbind(x, dim=2)
+        # forward_minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
+        x_f = x_f[:, 1:] - x_f[:, :-1]
+        # backward minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
+        x_b = x_b[:, :-1] - x_b[:, 1:]
+        # concat x: [batch_size, seq_len - 1, n_lstm_hidden * 2]
+        x = torch.cat((x_f, x_b), dim=-1)
 
         # mlp
-        # emits_1: [batch_size, seq_len - 1, n_labels]
-        emits_1 = self.mlp_unigram(x_1)
-        # emits_2: [batch_size, seq_len - 1, n_labels ** 2]
-        emits_2 = self.mlp_bigram(x_2)
-        # emits_2: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits_2 = emits_2.view(*emits_1.shape, -1)
-
-        # seq_len - 1才是原句子长度（即不包含<bos>或<eos>）
-        # emits: [batch_size, seq_len - 1, 1, n_labels] + [batch_size, seq_len - 1, n_labels, n_labels]
-        #       => [batch_size, seq_len - 1, n_labels, n_labels]
-        emits = emits_1.unsqueeze(2) + emits_2
+        # emits: [batch_size, seq_len - 1, n_labels, n_labels]
+        emits = self.mlp(x)
 
         return emits
 
