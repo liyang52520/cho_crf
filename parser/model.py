@@ -39,7 +39,8 @@ class Model(nn.Module):
         #                activation=nn.Identity())
         self.mlp = MinusSpanMLP(n_in=args.n_lstm_hidden * 2,
                                 n_mid=args.n_lstm_hidden * 4,
-                                n_out=args.n_labels ** 2)
+                                n_out=args.n_labels ** 2,
+                                activation=nn.Identity())
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
