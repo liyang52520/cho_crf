@@ -107,7 +107,7 @@ class Model(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         # x: [batch_size, seq_len, 2, n_lstm_hidden]
         x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
-        x_f, x_b = torch.unbind(x, dim=2)
+        x_b, x_f = torch.unbind(x, dim=2)
         # forward_minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
         x_f = x_f[:, 1:] - x_f[:, :-1]
         # backward minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
