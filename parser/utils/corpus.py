@@ -4,7 +4,6 @@ from collections import namedtuple
 from collections.abc import Iterable
 
 from parser.utils.field import Field
-from parser.utils.fn import BMES_to_words
 
 CoNLL = namedtuple(typename='CoNLL',
                    field_names=['WORD', 'LABEL'],
@@ -32,9 +31,6 @@ class Sentence(object):
 
     def __len__(self):
         return len(next(iter(self.values)))
-
-    def __repr__(self):
-        return " ".join(BMES_to_words(*self.values))
 
 
 class Corpus(object):
