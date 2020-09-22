@@ -23,7 +23,7 @@ class CMD(object):
             # word field
             self.WORD = Field('words',
                               bos=bos, eos=None, pad=pad, unk=unk,
-                              lower=True, to_half_width=True)
+                              lower=True)
 
             # label field
             self.LABEL = Field('labels', bos=bos, eos=None, pad=pad)
@@ -31,8 +31,7 @@ class CMD(object):
             # feat field（代码中只有char，也不用别的了，删掉了其余特征）
             if args.feat == "char":
                 self.CHAR = SubwordField("chars", fix_len=args.fix_len,
-                                         bos=bos, eos=None, pad=pad, unk=unk, lower=True,
-                                         to_half_width=True)
+                                         bos=bos, eos=None, pad=pad, unk=unk, lower=True)
                 self.fields = CoNLL(WORD=(self.WORD, self.CHAR), LABEL=self.LABEL)
             else:
                 self.fields = CoNLL(WORD=self.WORD, LABEL=self.LABEL)
