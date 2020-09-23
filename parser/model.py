@@ -35,10 +35,10 @@ class Model(nn.Module):
 
         # the MLP layers
         self.mlp_pre = MLP(n_in=args.n_lstm_hidden * 2,
-                           n_out=args.n_labels ** 2,
+                           n_out=args.n_labels,
                            activation=nn.Identity())
         self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2,
-                           n_out=args.n_labels ** 2,
+                           n_out=args.n_labels,
                            activation=nn.Identity())
         self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 2,
                               n_out=args.n_labels ** 2,
@@ -111,11 +111,14 @@ class Model(nn.Module):
         x = pack_padded_sequence(embed, lens, True, False)
         x, _ = self.lstm(x)
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
-        # x: [batch_size, seq_len, 2, n_lstm_hidden]
-        x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
 
         pre_emits = self.mlp_pre(x[:, :-1])
         now_emits = self.mlp_now(x[:, 1:])
+
+        # x: [batch_size, seq_len, 2, n_lstm_hidden]
+        x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
+
+
 
         x_f, x_b = torch.unbind(x, dim=2)
         # forward_minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
