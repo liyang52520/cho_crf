@@ -34,9 +34,15 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp = MLP(n_in=args.n_lstm_hidden * 2,
-                       n_out=args.n_labels ** 2,
-                       activation=nn.Identity())
+        self.mlp_pre = MLP(n_in=args.n_lstm_hidden * 2,
+                           n_out=args.n_labels ** 2,
+                           activation=nn.Identity())
+        self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2,
+                           n_out=args.n_labels ** 2,
+                           activation=nn.Identity())
+        self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 2,
+                              n_out=args.n_labels ** 2,
+                              activation=nn.Identity())
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
@@ -107,6 +113,10 @@ class Model(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         # x: [batch_size, seq_len, 2, n_lstm_hidden]
         x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
+
+        pre_emits = self.mlp_pre(x[:, :-1])
+        now_emits = self.mlp_now(x[:, 1:])
+
         x_f, x_b = torch.unbind(x, dim=2)
         # forward_minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
         x_f = x_f[:, 1:] - x_f[:, :-1]
@@ -117,9 +127,9 @@ class Model(nn.Module):
 
         # mlp
         # emits: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits = self.mlp(x).view(batch_size, seq_len - 1, n_labels, -1)
+        emits = self.mlp_bigram(x).view(batch_size, seq_len - 1, n_labels, -1)
 
-        return emits
+        return emits, pre_emits, now_emits
 
     def loss(self, emits, labels, mask):
         """
