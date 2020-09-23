@@ -112,13 +112,13 @@ class Model(nn.Module):
         x, _ = self.lstm(x)
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
 
+        # x: [batch_size, seq_len, n_lstm_hidden * 2]
+        x = self.lstm_dropout(x)
         pre_emits = self.mlp_pre(x[:, :-1])
         now_emits = self.mlp_now(x[:, 1:])
 
         # x: [batch_size, seq_len, 2, n_lstm_hidden]
-        x = self.lstm_dropout(x).view(batch_size, seq_len, 2, -1)
-
-
+        x = x.view(batch_size, seq_len, 2, -1)
 
         x_f, x_b = torch.unbind(x, dim=2)
         # forward_minus_span: [batch_size, seq_len - 1, n_lstm_hidden]
