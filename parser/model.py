@@ -111,7 +111,6 @@ class Model(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         x = self.lstm_dropout(x)
 
-        # todo: change input for mlp, now is concat
         if self.args.label_ngram == 2:
             # h_{i-1} \concat h_i
             x = torch.cat((x[:, :-1], x[:, 1:]), -1)

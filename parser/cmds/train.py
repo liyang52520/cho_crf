@@ -134,11 +134,9 @@ class Train(CMD):
 
             optimizer.zero_grad()
 
-            # todo cut mask
             mask = words.ne(self.args.pad_index)
-            if self.args.label_ngram > 1:
-                # mask: [batch_size, seq_len - label_ngram + 1]
-                mask = mask[:, (self.args.label_ngram - 1):]
+            # mask: [batch_size, seq_len - label_ngram + 1]
+            mask = mask[:, (self.args.label_ngram - 1):]
 
             # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels ** label_ngram]
             # seq_len - self.args.label_ngram + 1就是原句子未添加<bos>或者<eos>的长度
