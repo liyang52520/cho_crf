@@ -131,18 +131,20 @@ class Model(nn.Module):
 
         return emits, pre_emits, now_emits
 
-    def loss(self, emits, labels, mask):
+    def loss(self, emits, pre_emits, now_emits, labels, mask):
         """
 
         Args:
             emits:
+            pre_emits:
+            now_emits:
             labels:
             mask:
 
         Returns:
 
         """
-        return self.crf(emits, labels, mask)
+        return self.crf(emits, pre_emits, now_emits, labels, mask)
 
     @classmethod
     def load(cls, path):
@@ -169,14 +171,16 @@ class Model(nn.Module):
         }
         torch.save(state, path)
 
-    def predict(self, emits, mask):
+    def predict(self, emits, pre_emits, now_emits, mask):
         """
 
         Args:
             emits:
+            pre_emits:
+            now_emits:
             mask:
 
         Returns:
 
         """
-        return self.crf.viterbi(emits, mask)
+        return self.crf.viterbi(emits, pre_emits, now_emits, mask)

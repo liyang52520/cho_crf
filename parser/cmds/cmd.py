@@ -94,14 +94,14 @@ class CMD(object):
             mask = words.ne(self.args.pad_index)[:, 1:]
 
             # 计算分值
-            emits = model(feed_dict)
+            emits, pre_emits, now_emits = model(feed_dict)
 
             # loss
-            loss = model.loss(emits, labels, mask)
+            loss = model.loss(emits, pre_emits, now_emits, labels, mask)
             total_loss += loss.item()
 
             # predict
-            predicts = model.predict(emits, mask)
+            predicts = model.predict(emits, pre_emits, now_emits, mask)
             labels = labels[:, 1:]
             metric(predicts, labels, mask)
         total_loss /= len(loader)
