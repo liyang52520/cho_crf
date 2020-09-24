@@ -50,22 +50,20 @@ class Model(nn.Module):
         self.pad_index = args.pad_index
         self.unk_index = args.unk_index
 
-    def load_pretrained(self, embed_dict=None):
+    def load_pretrained(self, embed=None):
         """
         load pretrained embedding
 
         Args:
-            embed_dict:
+            embed:
 
         Returns:
 
         """
         # word embed
-        if isinstance(embed_dict, dict) and 'word_embed' in embed_dict:
-            word_embed = embed_dict['word_embed']
-            self.word_pretrained = nn.Embedding.from_pretrained(word_embed)
-            nn.init.zeros_(self.word_embed.weight)
-            self.pretrained = True
+        self.word_pretrained = nn.Embedding.from_pretrained(embed)
+        nn.init.zeros_(self.word_embed.weight)
+        self.pretrained = True
         return self
 
     def forward(self, feed_dict):
@@ -114,9 +112,6 @@ class Model(nn.Module):
 
         # x: [batch_size, seq_len, n_lstm_hidden * 2]
         x = self.lstm_dropout(x)
-        pre_emits = self.mlp_pre(x[:, :-1])
-        now_emits = self.mlp_now(x[:, 1:])
-
         # x: [batch_size, seq_len, 2, n_lstm_hidden]
         x = x.view(batch_size, seq_len, 2, -1)
 
@@ -132,22 +127,20 @@ class Model(nn.Module):
         # emits: [batch_size, seq_len - 1, n_labels, n_labels]
         emits = self.mlp_bigram(x).view(batch_size, seq_len - 1, n_labels, -1)
 
-        return emits, pre_emits, now_emits
+        return emits
 
-    def loss(self, emits, pre_emits, now_emits, labels, mask):
+    def loss(self, emits, labels, mask):
         """
 
         Args:
             emits:
-            pre_emits:
-            now_emits:
             labels:
             mask:
 
         Returns:
 
         """
-        return self.crf(emits, pre_emits, now_emits, labels, mask)
+        return self.crf(emits, labels, mask)
 
     @classmethod
     def load(cls, path):
@@ -163,10 +156,7 @@ class Model(nn.Module):
     def save(self, path):
         state_dict, pretrained = self.state_dict(), None
         if self.pretrained:
-            pretrained = {'word_embed': state_dict.pop('word_pretrained.weight')}
-            if hasattr(self, 'bi_pretrained'):
-                pretrained.update(
-                    {'bi_embed': state_dict.pop('bi_pretrained.weight')})
+            pretrained = state_dict.pop('word_pretrained.weight')
         state = {
             'args': self.args,
             'state_dict': state_dict,
@@ -174,16 +164,14 @@ class Model(nn.Module):
         }
         torch.save(state, path)
 
-    def predict(self, emits, pre_emits, now_emits, mask):
+    def predict(self, emits, mask):
         """
 
         Args:
             emits:
-            pre_emits:
-            now_emits:
             mask:
 
         Returns:
 
         """
-        return self.crf.viterbi(emits, pre_emits, now_emits, mask)
+        return self.crf.viterbi(emits, mask)

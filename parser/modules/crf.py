@@ -109,7 +109,7 @@ class CRF(nn.Module):
         log_z = torch.logsumexp(log_alpha, dim=1)
         return log_z.sum()
 
-    def viterbi(self, emits, pre_emits, now_emits, mask):
+    def viterbi(self, emits, mask):
         """
 
         Args:
