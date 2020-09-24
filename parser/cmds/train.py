@@ -81,44 +81,45 @@ class Train(CMD):
         total_time = timedelta()
         best_e, best_metric = 1, Metric()
 
-        for epoch in range(1, args.epochs + 1):
-            print(f"Epoch {epoch} / {args.epochs}:")
-            start = datetime.now()
-            # train
-            self.train(self.model, train.loader, self.optimizer, self.scheduler)
-            # dev
-            loss, dev_metric = self.evaluate(self.model, dev.loader)
-            print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric}")
-
-            t = datetime.now() - start
-            # save the model if it is the best so far
-            if dev_metric > best_metric and epoch > args.patience // 10:
-                best_e, best_metric = epoch, dev_metric
-                if hasattr(self.model, 'module'):
-                    self.model.module.save(args.model)
-                else:
-                    self.model.save(args.model)
-                print(f"{t}s elapsed (saved)\n")
-            else:
-                print(f"{t}s elapsed\n")
-            if hasattr(self.model, 'module'):
-                self.model.module.save(os.path.join(args.dir, 'model.last_epoch'))
-            else:
-                self.model.save(os.path.join(args.dir, 'model.last_epoch'))
-
-            total_time += t
-
-            # patience
-            if epoch - best_e >= args.patience:
-                break
+        # for epoch in range(1, args.epochs + 1):
+        #     print(f"Epoch {epoch} / {args.epochs}:")
+        #     start = datetime.now()
+        #     # train
+        #     self.train(self.model, train.loader, self.optimizer, self.scheduler)
+        #     # dev
+        #     loss, dev_metric = self.evaluate(self.model, dev.loader)
+        #     print(f"{'dev:':6} Loss: {loss:.4f} {dev_metric}")
+        #
+        #     t = datetime.now() - start
+        #     # save the model if it is the best so far
+        #     if dev_metric > best_metric and epoch > args.patience // 10:
+        #         best_e, best_metric = epoch, dev_metric
+        #         if hasattr(self.model, 'module'):
+        #             self.model.module.save(args.model)
+        #         else:
+        #             self.model.save(args.model)
+        #         print(f"{t}s elapsed (saved)\n")
+        #     else:
+        #         print(f"{t}s elapsed\n")
+        #     if hasattr(self.model, 'module'):
+        #         self.model.module.save(os.path.join(args.dir, 'model.last_epoch'))
+        #     else:
+        #         self.model.save(os.path.join(args.dir, 'model.last_epoch'))
+        #
+        #     total_time += t
+        #
+        #     # patience
+        #     if epoch - best_e >= args.patience:
+        #         break
 
         # test
         self.model = Model.load(args.model)
+        loss, best_metric = self.evaluate(self.model, dev.loader)
         loss, metric = self.evaluate(self.model, test.loader)
 
         print(f"max score of dev is {best_metric.score:.2%} at epoch {best_e}")
         print(f"the score of test at epoch {best_e} is {metric.score:.2%}")
-        print(f"average time of each epoch is {total_time / epoch}s")
+        # print(f"average time of each epoch is {total_time / epoch}s")
         print(f"{total_time}s elapsed")
 
     def train(self, model, loader, optimizer, scheduler):
