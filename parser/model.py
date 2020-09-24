@@ -56,9 +56,10 @@ class Model(nn.Module):
 
         """
         # word embed
-        self.word_pretrained = nn.Embedding.from_pretrained(embed)
-        nn.init.zeros_(self.word_embed.weight)
-        self.pretrained = True
+        if embed is not None:
+            self.word_pretrained = nn.Embedding.from_pretrained(embed)
+            nn.init.zeros_(self.word_embed.weight)
+            self.pretrained = True
         return self
 
     def forward(self, feed_dict):
