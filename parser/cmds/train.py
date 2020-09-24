@@ -56,7 +56,8 @@ class Train(CMD):
 
         print("Create the model")
 
-        embed = {'word_embed': self.WORD.embed}
+        if args.embedding:
+            embed = {'word_embed': self.WORD.embed}
 
         # load pretrained
         self.model = Model(args).load_pretrained(embed)

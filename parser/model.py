@@ -45,22 +45,20 @@ class Model(nn.Module):
         self.pad_index = args.pad_index
         self.unk_index = args.unk_index
 
-    def load_pretrained(self, embed_dict=None):
+    def load_pretrained(self, embed):
         """
         load pretrained embedding
 
         Args:
-            embed_dict:
+            embed:
 
         Returns:
 
         """
         # word embed
-        if isinstance(embed_dict, dict) and 'word_embed' in embed_dict:
-            word_embed = embed_dict['word_embed']
-            self.word_pretrained = nn.Embedding.from_pretrained(word_embed)
-            nn.init.zeros_(self.word_embed.weight)
-            self.pretrained = True
+        self.word_pretrained = nn.Embedding.from_pretrained(embed)
+        nn.init.zeros_(self.word_embed.weight)
+        self.pretrained = True
         return self
 
     def forward(self, feed_dict):
@@ -150,10 +148,7 @@ class Model(nn.Module):
     def save(self, path):
         state_dict, pretrained = self.state_dict(), None
         if self.pretrained:
-            pretrained = {'word_embed': state_dict.pop('word_pretrained.weight')}
-            if hasattr(self, 'bi_pretrained'):
-                pretrained.update(
-                    {'bi_embed': state_dict.pop('bi_pretrained.weight')})
+            pretrained = state_dict.pop('word_pretrained.weight')
         state = {
             'args': self.args,
             'state_dict': state_dict,
