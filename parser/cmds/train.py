@@ -140,10 +140,10 @@ class Train(CMD):
             mask = words.ne(self.args.pad_index)[:, 1:]
 
             # emits: [batch_size, seq_len, n_labels, n_labels]
-            emits, pre_emits, now_emits = model(feed_dict)
+            emits = model(feed_dict)
 
             # compute crf loss
-            loss = model.loss(emits, pre_emits, now_emits, labels, mask)
+            loss = model.loss(emits, labels, mask)
             loss.backward()
             #
             nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
