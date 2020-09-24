@@ -42,6 +42,8 @@ if __name__ == '__main__':
                                help='batch size')
         subparser.add_argument('--buckets', default=32, type=int,
                                help='max num of buckets to use')
+        subparser.add_argument('--embedding', action='store_true',
+                               help='whether to use pretrained embedding')
 
     args = parser.parse_args()
 

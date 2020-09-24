@@ -41,7 +41,9 @@ class CMD(object):
             train = Corpus.load(args.ftrain, self.fields)
 
             # build vocab
-            embed = Embedding.load('data/embedding/giga.100.txt', )
+            embed = None
+            if args.embedding:
+                embed = Embedding.load('data/embedding/giga.100.txt', )
             self.WORD.build(train, args.min_freq, embed)
             self.LABEL.build(train)
             if args.feat == "char":
