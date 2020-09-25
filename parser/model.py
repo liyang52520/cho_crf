@@ -25,11 +25,14 @@ class Model(nn.Module):
         self.embed_dropout = IndependentDropout(p=args.embed_dropout)
 
         # the lstm layer
-        self.lstm_unigram = BiLSTM(input_size=n_lstm_input,
-                                   hidden_size=args.n_lstm_hidden,
-                                   num_layers=args.n_lstm_layers,
-                                   dropout=args.lstm_dropout)
-
+        self.lstm_pre = BiLSTM(input_size=n_lstm_input,
+                               hidden_size=args.n_lstm_hidden,
+                               num_layers=args.n_lstm_layers,
+                               dropout=args.lstm_dropout)
+        self.lstm_now = BiLSTM(input_size=n_lstm_input,
+                               hidden_size=args.n_lstm_hidden,
+                               num_layers=args.n_lstm_layers,
+                               dropout=args.lstm_dropout)
         self.lstm_bigram = BiLSTM(input_size=n_lstm_input,
                                   hidden_size=args.n_lstm_hidden,
                                   num_layers=args.n_lstm_layers,
@@ -37,10 +40,12 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        # 要用两个mlp层，一个计算unigram，一个计算bigram
-        self.mlp_unigram = MLP(n_in=args.n_lstm_hidden * 2,
-                               n_out=args.n_labels,
-                               activation=nn.Identity())
+        self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2,
+                           n_out=args.n_labels,
+                           activation=nn.Identity())
+        self.mlp_pre = MLP(n_in=args.n_lstm_hidden * 2,
+                           n_out=args.n_labels,
+                           activation=nn.Identity())
         self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 4,
                               n_out=args.n_labels ** 2,
                               activation=nn.Identity())
@@ -107,32 +112,37 @@ class Model(nn.Module):
             embed = self.embed_dropout(word_embed)[0]
 
         # lstm
-        # unigram去掉<bos>再输入到lstm中
-        x_1 = pack_padded_sequence(embed[:, 1:], lens - 1, True, False)
-        x_1, _ = self.lstm_unigram(x_1)
-        x_1, _ = pad_packed_sequence(x_1, True, total_length=seq_len - 1)
-        # x_1: [batch_size, seq_len - 1, n_lstm_hidden * 2]
-        x_1 = self.lstm_dropout(x_1)
+        # pre去掉最后一位再输入到lstm中
+        x_pre = pack_padded_sequence(embed[:, :-1], lens - 1, True, False)
+        x_pre, _ = self.lstm_pre(x_pre)
+        x_pre, _ = pad_packed_sequence(x_pre, True, total_length=seq_len - 1)
+        # x_pre: [batch_size, seq_len - 1, n_lstm_hidden * 2]
+        x_pre = self.lstm_dropout(x_pre)
+
+        # now去掉<bos>再输入到lstm中
+        x_now = pack_padded_sequence(embed[:, 1:], lens - 1, True, False)
+        x_now, _ = self.lstm_now(x_now)
+        x_now, _ = pad_packed_sequence(x_now, True, total_length=seq_len - 1)
+        # x_now: [batch_size, seq_len - 1, n_lstm_hidden * 2]
+        x_now = self.lstm_dropout(x_now)
+
         # bigram
-        x_2 = pack_padded_sequence(embed, lens, True, False)
-        x_2, _ = self.lstm_bigram(x_2)
-        x_2, _ = pad_packed_sequence(x_2, True, total_length=seq_len)
-        x_2 = self.lstm_dropout(x_2)
+        x_bigram = pack_padded_sequence(embed, lens, True, False)
+        x_bigram, _ = self.lstm_bigram(x_bigram)
+        x_bigram, _ = pad_packed_sequence(x_bigram, True, total_length=seq_len)
+        x_bigram = self.lstm_dropout(x_bigram)
         # x_2: [batch_size, seq_len - 1, n_lstm_hidden * 4]
-        x_2 = torch.cat((x_2[:, :-1], x_2[:, 1:]), -1)
+        x_bigram = torch.cat((x_bigram[:, :-1], x_bigram[:, 1:]), -1)
 
         # mlp
-        # emits_1: [batch_size, seq_len - 1, n_labels]
-        emits_1 = self.mlp_unigram(x_1)
-        # emits_2: [batch_size, seq_len - 1, n_labels ** 2]
-        emits_2 = self.mlp_bigram(x_2)
-        # emits_2: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits_2 = emits_2.view(*emits_1.shape, -1)
+        # emits_pre, emits_now: [batch_size, seq_len - 1, n_labels]
+        emits_pre = self.mlp_pre(x_pre)
+        emits_now = self.mlp_now(x_now)
+        # emits_bigram: [batch_size, seq_len - 1, n_labels, n_labels]
+        emits_bigram = self.mlp_bigram(x_bigram).view(*emits_now.shape, -1)
 
-        # seq_len - 1才是原句子长度（即不包含<bos>或<eos>）
-        # emits: [batch_size, seq_len - 1, 1, n_labels] + [batch_size, seq_len - 1, n_labels, n_labels]
-        #       => [batch_size, seq_len - 1, n_labels, n_labels]
-        emits = emits_1.unsqueeze(2) + emits_2
+        #
+        emits = emits_pre.unsqueeze(-1) + emits_bigram + emits_now.unsqueeze(-2)
 
         return emits
 
