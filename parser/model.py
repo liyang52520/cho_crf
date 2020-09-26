@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import MLP, BiLSTM, CharLSTM, CRF, LabelSmoothing
+from parser.modules import MLP, BiLSTM, CharLSTM, CRF, LabelSmoothing, Biaffine
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
@@ -32,15 +32,11 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp = MLP(n_in=args.n_lstm_hidden * 2 * args.label_ngram,
-                       n_out=args.n_labels ** args.label_ngram,
-                       activation=nn.Identity())
-        # label smoothing
-        if args.label_smoothing:
-            self.label_smoothing = LabelSmoothing(args.n_labels ** args.label_ngram, args.label_smoothing_eps)
+        self.biaffine = Biaffine(n_in=args.n_lstm_hidden * 2, n_out=args.n_labels,
+                                 bias_x=True, bias_y=False)
 
         # crf
-        self.crf = CRF(self.args.label_ngram, args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
+        self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
 
         self.pad_index = args.pad_index
         self.unk_index = args.unk_index
@@ -71,10 +67,6 @@ class Model(nn.Module):
         Returns:
 
         """
-        # 1阶时，seq中不包含<bos>和<eos>
-        # 2阶时，seq中包含了<bos>
-        # 3阶时，seq中又包含了<eos>
-
         # words: [batch_size, seq_len]
         words = feed_dict["words"]
         batch_size, seq_len = words.shape
@@ -110,15 +102,12 @@ class Model(nn.Module):
         x, _ = pad_packed_sequence(x, True, total_length=seq_len)
         x = self.lstm_dropout(x)
 
-        if self.args.label_ngram == 2:
-            # h_{i-1} \concat h_i
-            x = torch.cat((x[:, :-1], x[:, 1:]), -1)
+        # pre, now: [batch_size, seq_len - 1, n_lstm_hidden * 2]
+        pre = x[:, :-1]
+        now = x[:, 1:]
 
-        # emits: [batch_size, seq_len - label_ngram + 1, n_labels ** label_ngram]
-        emits = self.mlp(x)
-
-        if hasattr(self, "label_smoothing"):
-            emits = self.label_smoothing(emits)
+        # emits: [batch_size, seq_len - 1, n_labels]
+        emits = self.biaffine(now, pre)
 
         return emits
 

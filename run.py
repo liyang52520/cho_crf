@@ -40,12 +40,8 @@ if __name__ == '__main__':
                                help='choices of additional features')
         subparser.add_argument('--batch-size', default=5000, type=int,
                                help='batch size')
-        subparser.add_argument('--label-ngram', default=1, type=int,
-                               help='label ngram')
         subparser.add_argument('--buckets', default=32, type=int,
                                help='max num of buckets to use')
-        subparser.add_argument('--label-smoothing', action='store_true',
-                               help='whether to use label smoothing')
         subparser.add_argument('--embedding', action='store_true',
                                help='whether to use pretrained embedding')
 

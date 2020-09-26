@@ -31,13 +31,20 @@ class Biaffine(nn.Module):
         nn.init.zeros_(self.weight)
 
     def forward(self, x, y):
+        """
+
+        Args:
+            x (torch.Tensor): [batch_size, seq_len, n_lstm_hidden * 2]
+            y (torch.Tensor): [batch_size, seq_len, n_lstm_hidden * 2]
+
+        Returns:
+
+        """
         if self.bias_x:
             x = torch.cat((x, torch.ones_like(x[..., :1])), -1)
         if self.bias_y:
             y = torch.cat((y, torch.ones_like(y[..., :1])), -1)
-        # [batch_size, n_out, seq_len, seq_len]
-        s = torch.einsum('bxi,oij,byj->boxy', x, self.weight, y)
-        # remove dim 1 if n_out == 1
-        s = s.squeeze(1)
+        # s: [batch_size, seq_len, n_labels]
+        s = torch.einsum('bsi,oij,bsj->bso', x, self.weight, y)
 
         return s

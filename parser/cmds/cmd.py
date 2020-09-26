@@ -22,22 +22,17 @@ class CMD(object):
 
             # word field
             self.WORD = Field('words',
-                              bos=bos if args.label_ngram > 1 else None,
-                              eos=eos if args.label_ngram > 2 else None,
-                              pad=pad, unk=unk, lower=True, to_half_width=True)
+                              bos=bos, eos=None, pad=pad, unk=unk,
+                              lower=True, to_half_width=True)
 
             # label field
-            self.LABEL = Field('labels',
-                               bos=bos if args.label_ngram > 1 else None,
-                               eos=eos if args.label_ngram > 2 else None,
-                               pad=pad)
+            self.LABEL = Field('labels', bos=bos, eos=None, pad=pad)
 
             # feat field（代码中只有char，也不用别的了，删掉了其余特征）
             if args.feat == "char":
                 self.CHAR = SubwordField("chars", fix_len=args.fix_len,
-                                         bos=bos if args.label_ngram > 1 else None,
-                                         eos=eos if args.label_ngram > 2 else None,
-                                         pad=pad, unk=unk, lower=True, to_half_width=True)
+                                         bos=bos, eos=None, pad=pad, unk=unk,
+                                         lower=True, to_half_width=True)
                 self.fields = CoNLL(WORD=(self.WORD, self.CHAR), LABEL=self.LABEL)
             else:
                 self.fields = CoNLL(WORD=self.WORD, LABEL=self.LABEL)
@@ -100,8 +95,7 @@ class CMD(object):
 
             # mask
             mask = words.ne(self.args.pad_index)
-            if self.args.label_ngram > 1:
-                mask = mask[:, (self.args.label_ngram - 1):]
+            mask = mask[:, 1:]
 
             # 计算分值
             emits = model(feed_dict)
@@ -112,12 +106,7 @@ class CMD(object):
 
             # predict
             predicts = model.predict(emits, mask)
-            if self.args.label_ngram > 1:
-                # 去掉<bos>
-                labels = labels[:, 1:]
-            if self.args.label_ngram > 2:
-                # 如果大于2，要去掉<bos>和<eos>，但是目前不会遇到
-                pass
+            labels = labels[:, 1:]
             metric(predicts, labels, mask)
         total_loss /= len(loader)
 

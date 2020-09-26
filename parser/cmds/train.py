@@ -135,11 +135,10 @@ class Train(CMD):
             optimizer.zero_grad()
 
             mask = words.ne(self.args.pad_index)
-            # mask: [batch_size, seq_len - label_ngram + 1]
-            mask = mask[:, (self.args.label_ngram - 1):]
+            # mask: [batch_size, seq_len - 1]
+            mask = mask[:, 1:]
 
-            # emits: [batch_size, seq_len - self.args.label_ngram + 1, n_labels ** label_ngram]
-            # seq_len - self.args.label_ngram + 1就是原句子未添加<bos>或者<eos>的长度
+            # emits: [batch_size, seq_len - 1, n_labels]
             emits = model(feed_dict)
 
             # compute crf loss
