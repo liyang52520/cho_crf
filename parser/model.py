@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import MLP, BiLSTM, CharLSTM, CRF, LabelSmoothing, Biaffine
+from parser.modules import BiLSTM, CharLSTM, CRF, Biaffine
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
