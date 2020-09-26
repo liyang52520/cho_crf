@@ -33,7 +33,7 @@ class Model(nn.Module):
 
         # the MLP layers
         self.biaffine = Biaffine(n_in=args.n_lstm_hidden * 2, n_out=args.n_labels,
-                                 bias_x=True, bias_y=True)
+                                 bias_x=False, bias_y=False)
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
