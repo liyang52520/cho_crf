@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from parser.modules.dropout import SharedDropout
-
 import torch
 import torch.nn as nn
 from torch.nn.modules.rnn import apply_permutation
 from torch.nn.utils.rnn import PackedSequence
+
+from parser.modules.dropout import SharedDropout
 
 
 class BiLSTM(nn.Module):
