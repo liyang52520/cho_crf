@@ -25,18 +25,10 @@ class Model(nn.Module):
         self.embed_dropout = IndependentDropout(p=args.embed_dropout)
 
         # the lstm layer
-        self.lstm_pre = BiLSTM(input_size=n_lstm_input,
-                               hidden_size=args.n_lstm_hidden,
-                               num_layers=args.n_lstm_layers,
-                               dropout=args.lstm_dropout)
-        self.lstm_now = BiLSTM(input_size=n_lstm_input,
-                               hidden_size=args.n_lstm_hidden,
-                               num_layers=args.n_lstm_layers,
-                               dropout=args.lstm_dropout)
-        self.lstm_bigram = BiLSTM(input_size=n_lstm_input,
-                                  hidden_size=args.n_lstm_hidden,
-                                  num_layers=args.n_lstm_layers,
-                                  dropout=args.lstm_dropout)
+        self.lstm = BiLSTM(input_size=n_lstm_input,
+                           hidden_size=args.n_lstm_hidden,
+                           num_layers=args.n_lstm_layers,
+                           dropout=args.lstm_dropout)
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
@@ -111,34 +103,19 @@ class Model(nn.Module):
             embed = self.embed_dropout(word_embed)[0]
 
         # lstm
-        # pre去掉最后一位再输入到lstm中
-        x_pre = pack_padded_sequence(embed[:, :-1], lens - 1, True, False)
-        x_pre, _ = self.lstm_pre(x_pre)
-        x_pre, _ = pad_packed_sequence(x_pre, True, total_length=seq_len - 1)
-        # x_pre: [batch_size, seq_len - 1, n_lstm_hidden * 2]
-        x_pre = self.lstm_dropout(x_pre)
-
-        # now去掉<bos>再输入到lstm中
-        x_now = pack_padded_sequence(embed[:, 1:], lens - 1, True, False)
-        x_now, _ = self.lstm_now(x_now)
-        x_now, _ = pad_packed_sequence(x_now, True, total_length=seq_len - 1)
-        # x_now: [batch_size, seq_len - 1, n_lstm_hidden * 2]
-        x_now = self.lstm_dropout(x_now)
-
-        # bigram
-        x_bigram = pack_padded_sequence(embed, lens, True, False)
-        x_bigram, _ = self.lstm_bigram(x_bigram)
-        x_bigram, _ = pad_packed_sequence(x_bigram, True, total_length=seq_len)
-        x_bigram = self.lstm_dropout(x_bigram)
-        # x_2: [batch_size, seq_len - 1, n_lstm_hidden * 4]
-        x_bigram = torch.cat((x_bigram[:, :-1], x_bigram[:, 1:]), -1)
+        x = pack_padded_sequence(embed, lens, True, False)
+        x, _ = self.lstm(x)
+        x, _ = pad_packed_sequence(x, True, total_length=seq_len)
+        x = self.lstm_dropout(x)
 
         # mlp
         # emits_pre, emits_now: [batch_size, seq_len - 1, n_labels]
-        emits_pre = self.mlp_pre(x_pre)
-        emits_now = self.mlp_now(x_now)
+        emits_pre = self.mlp_pre(x[:, :-1])
+        emits_now = self.mlp_now(x[:, 1:])
         # emits_bigram: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits_bigram = self.mlp_bigram(x_bigram).view(*emits_now.shape, -1)
+        # x_2: [batch_size, seq_len - 1, n_lstm_hidden * 4]
+        x = torch.cat((x[:, :-1], x[:, 1:]), -1)
+        emits_bigram = self.mlp_bigram(x).view(*emits_now.shape, -1)
 
         #
         emits = emits_pre.unsqueeze(-1) + emits_bigram + emits_now.unsqueeze(-2)
