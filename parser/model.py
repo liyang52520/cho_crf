@@ -34,6 +34,7 @@ class Model(nn.Module):
         # the MLP layers
         self.mlp = MLP(n_in=args.n_lstm_hidden * 2 * args.label_ngram,
                        n_out=args.n_labels ** args.label_ngram,
+                       dropout=args.mlp_dropout,
                        activation=nn.Identity())
         # label smoothing
         if args.label_smoothing:
