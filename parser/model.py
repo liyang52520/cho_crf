@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import MLP, BiLSTM, CharLSTM, CRF
+from parser.modules import MLP, BiLSTM, CharLSTM, CRF, BiMLP
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
@@ -32,11 +32,17 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp = MLP(n_layers=args.label_ngram,
-                       n_in=args.n_lstm_hidden * 2 * args.label_ngram,
-                       n_out=args.n_labels ** args.label_ngram,
-                       dropout=args.mlp_dropout,
-                       activation=nn.Identity())
+        if args.label_ngram == 1:
+            self.mlp = MLP(n_in=args.n_lstm_hidden * 2,
+                           n_out=args.n_labels)
+        elif args.label_ngram == 2:
+            self.mlp = BiMLP(n_in=args.n_lstm_hidden * 4,
+                             n_mid=args.n_lstm_hidden * 2,
+                             n_out=args.n_labels ** 2,
+                             dropout=args.mlp_dropout,
+                             activation=nn.Identity())
+        else:
+            raise Exception("Unexpected label_ngram, only 1 or 2.")
 
         # crf
         self.crf = CRF(self.args.label_ngram, args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
