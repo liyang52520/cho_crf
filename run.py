@@ -44,8 +44,6 @@ if __name__ == '__main__':
                                help='label ngram')
         subparser.add_argument('--buckets', default=32, type=int,
                                help='max num of buckets to use')
-        subparser.add_argument('--label-smoothing', action='store_true',
-                               help='whether to use label smoothing')
         subparser.add_argument('--embedding', action='store_true',
                                help='whether to use pretrained embedding')
 
