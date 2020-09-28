@@ -32,5 +32,4 @@ class MLP(nn.Module):
     def forward(self, x):
         x = self.linear(x)
         x = self.activation(x)
-        x = self.dropout(x)
         return x
