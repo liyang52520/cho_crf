@@ -14,8 +14,8 @@ class Biaffine(nn.Module):
         self.bias_x = bias_x
         self.bias_y = bias_y
         self.weight = nn.Parameter(torch.Tensor(n_out,
-                                                n_in + int(bias_x),
-                                                n_in + int(bias_y)))
+                                                n_in + bias_x,
+                                                n_in + bias_y))
         self.reset_parameters()
 
     def extra_repr(self):

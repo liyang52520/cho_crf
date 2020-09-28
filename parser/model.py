@@ -36,7 +36,7 @@ class Model(nn.Module):
                            dropout=args.mlp_dropout, activation=nn.Identity())
         self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2, n_out=args.n_mlp,
                            dropout=args.mlp_dropout, activation=nn.Identity())
-        self.biaffine = Biaffine(n_in=args.mlp_dropout, n_out=args.n_labels,
+        self.biaffine = Biaffine(n_in=args.n_mlp, n_out=args.n_labels,
                                  bias_x=True, bias_y=False)
 
         # crf
