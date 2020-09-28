@@ -19,7 +19,6 @@ class MLP(nn.Module):
             self.linear_1 = nn.Linear(n_in, self.n_mid)
             self.linear_2 = nn.Linear(self.n_mid, n_out)
             self.activation_1 = nn.LeakyReLU(negative_slope=0.1)
-            self.dropout = SharedDropout(p=dropout)
         elif self.n_layers == 1:
             self.linear_1 = nn.Linear(n_in, n_out)
         else:
@@ -29,6 +28,7 @@ class MLP(nn.Module):
             self.activation_2 = nn.LeakyReLU(negative_slope=0.1)
         else:
             self.activation_2 = activation
+        self.dropout = SharedDropout(p=dropout)
 
         self.reset_parameters()
 

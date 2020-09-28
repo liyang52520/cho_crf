@@ -35,6 +35,7 @@ class Model(nn.Module):
         self.mlp = MLP(n_layers=args.label_ngram,
                        n_in=args.n_lstm_hidden * 2 * args.label_ngram,
                        n_out=args.n_labels ** args.label_ngram,
+                       dropout=args.mlp_dropout,
                        activation=nn.Identity())
 
         # crf
