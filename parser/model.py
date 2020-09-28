@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import BiLSTM, CharLSTM, CRF, Biaffine
+from parser.modules import BiLSTM, CharLSTM, CRF, Biaffine, MLP
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
@@ -32,8 +32,12 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.biaffine = Biaffine(n_in=args.n_lstm_hidden * 2, n_out=args.n_labels,
-                                 bias_x=False, bias_y=False)
+        self.mlp_pre = MLP(n_in=args.n_lstm_hidden * 2, n_out=args.n_mlp,
+                           dropout=args.mlp_dropout, activation=nn.Identity())
+        self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2, n_out=args.n_mlp,
+                           dropout=args.mlp_dropout, activation=nn.Identity())
+        self.biaffine = Biaffine(n_in=args.mlp_dropout, n_out=args.n_labels,
+                                 bias_x=True, bias_y=False)
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
@@ -103,8 +107,11 @@ class Model(nn.Module):
         x = self.lstm_dropout(x)
 
         # pre, now: [batch_size, seq_len - 1, n_lstm_hidden * 2]
-        pre = x[:, :-1]
         now = x[:, 1:]
+        pre = x[:, :-1]
+
+        now = self.mlp_now(now)
+        pre = self.mlp_pre(pre)
 
         # emits: [batch_size, seq_len - 1, n_labels]
         emits = self.biaffine(now, pre)
