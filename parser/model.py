@@ -36,9 +36,6 @@ class Model(nn.Module):
                        n_out=args.n_labels ** args.label_ngram,
                        dropout=args.mlp_dropout,
                        activation=nn.Identity())
-        # label smoothing
-        if args.label_smoothing:
-            self.label_smoothing = LabelSmoothing(args.n_labels ** args.label_ngram, args.label_smoothing_eps)
 
         # crf
         self.crf = CRF(self.args.label_ngram, args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
