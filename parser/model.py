@@ -34,15 +34,9 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp_pre = MLP(n_in=args.n_lstm_hidden * 2,
-                           n_out=args.n_labels,
-                           activation=nn.Identity())
-        self.mlp_now = MLP(n_in=args.n_lstm_hidden * 2,
-                           n_out=args.n_labels,
-                           activation=nn.Identity())
-        self.mlp_bigram = MLP(n_in=args.n_lstm_hidden * 2,
-                              n_out=args.n_labels ** 2,
-                              activation=nn.Identity())
+        self.mlp = MLP(n_in=args.n_lstm_hidden * 2,
+                       n_out=args.n_labels ** 2,
+                       activation=nn.Identity())
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
@@ -126,7 +120,7 @@ class Model(nn.Module):
 
         # mlp
         # emits: [batch_size, seq_len - 1, n_labels, n_labels]
-        emits = self.mlp_bigram(x).view(batch_size, seq_len - 1, n_labels, -1)
+        emits = self.mlp(x).view(batch_size, seq_len - 1, n_labels, -1)
 
         return emits
 
