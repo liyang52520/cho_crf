@@ -1,31 +1,26 @@
 # -*- coding: utf-8 -*-
 
-from parser.modules.dropout import SharedDropout
-
 import torch.nn as nn
 
 
 class MLP(nn.Module):
 
-    def __init__(self, n_in, n_out, dropout=0, activation=None):
+    def __init__(self, n_in, n_out, activation=None):
         super(MLP, self).__init__()
-
         self.n_in = n_in
         self.n_out = n_out
         self.linear = nn.Linear(n_in, n_out)
+
         if activation is None:
-            self.activation = nn.LeakyReLU(negative_slope=0.1)
+            self.activation = nn.Identity()
         else:
             self.activation = activation
 
-        self.dropout = SharedDropout(p=dropout)
         self.reset_parameters()
 
     def __repr__(self):
         s = self.__class__.__name__ + '('
         s += f"n_in={self.n_in}, n_out={self.n_out}"
-        if self.dropout.p > 0:
-            s += f", dropout={self.dropout.p}"
         s += ')'
 
         return s
@@ -38,5 +33,4 @@ class MLP(nn.Module):
         x = self.linear(x)
         x = self.activation(x)
         x = self.dropout(x)
-
         return x
