@@ -5,6 +5,7 @@ from .biaffine import Biaffine
 from .bilstm import BiLSTM
 from .char_lstm import CharLSTM
 from .crf import CRF
+from .bimlp import BiMLP
 from .mlp import MLP
 
-__all__ = ['CharLSTM', 'MLP', 'Biaffine', 'BiLSTM', 'dropout', 'CRF']
+__all__ = ['CharLSTM', 'MLP', 'Biaffine', 'BiLSTM', 'dropout', 'CRF', 'BiMLP']

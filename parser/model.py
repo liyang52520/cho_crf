@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from parser.modules import MLP, CharLSTM, CRF
+from parser.modules import CharLSTM, CRF, BiMLP
 from parser.modules.dropout import IndependentDropout, SharedDropout
 
 
@@ -34,9 +34,10 @@ class Model(nn.Module):
         self.lstm_dropout = SharedDropout(p=args.lstm_dropout)
 
         # the MLP layers
-        self.mlp = MLP(n_in=args.n_lstm_hidden * 2,
-                       n_out=args.n_labels ** 2,
-                       activation=nn.Identity())
+        self.mlp = BiMLP(n_in=args.n_lstm_hidden * 2,
+                         n_mid=args.n_lstm_hidden,
+                         n_out=args.n_labels ** 2,
+                         dropout=args.mlp_dropout)
 
         # crf
         self.crf = CRF(args.n_labels, self.args.label_bos_index, self.args.label_pad_index)
